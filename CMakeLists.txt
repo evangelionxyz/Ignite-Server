@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(THIRD_PARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty")
+set(GameNetworkingSocketsDir "${THIRD_PARTY_DIR}/GameNetworkingSockets")
 set(MySQLDirectory "${THIRD_PARTY_DIR}/MySQLConnector")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_CURRENT_SOURCE_DIR}/bin/RelWithDebInfo")
@@ -17,3 +18,5 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_CURRENT_SOURCE_DIR}/lib/Debug"
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/lib/Release")
 
 add_subdirectory("Database")
+add_subdirectory("Networking")
+add_subdirectory("TestServer")
