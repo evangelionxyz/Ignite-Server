@@ -1,9 +1,6 @@
 add_executable(IgniteDatabase
     source/main.cpp
     source/Database.hpp
-        ../TestServer/source/TestServer.cpp
-        ../TestServer/source/TestServer.hpp
-        ../TestServer/source/Main.cpp
 )
 
 target_include_directories(IgniteDatabase PRIVATE ${MySQLDirectory}/include/jdbc)

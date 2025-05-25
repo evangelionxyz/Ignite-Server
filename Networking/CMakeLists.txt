@@ -17,21 +17,21 @@ if (WIN32)
             _CRT_SECURE_NO_WARNINGS
     )
     target_link_libraries(IgniteNet PUBLIC
-            ${GameNetworkingSocketsDir}/bin/Windows/${CMAKE_BUILD_TYPE}/GameNetworkingSockets.lib
+            ${GameNetworkingSocketsDir}/lib/Windows/${CMAKE_BUILD_TYPE}/GameNetworkingSockets.lib
     )
 
 #    add_custom_command(TARGET IgniteNet POST_BUILD
 #
 #            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#            "${GameNetworkingSocketsDir}/bin/Windows/${CMAKE_BUILD_TYPE}/GameNetworkingSockets.dll"
+#            "${GameNetworkingSocketsDir}/lib/Windows/${CMAKE_BUILD_TYPE}/GameNetworkingSockets.dll"
 #            "$<TARGET_FILE_DIR:IgniteNet>/GameNetworkingSockets.dll"
 #
 #            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#            "${GameNetworkingSocketsDir}/bin/Windows/${CMAKE_BUILD_TYPE}/libssl-3-x64.dll"
+#            "${GameNetworkingSocketsDir}/lib/Windows/${CMAKE_BUILD_TYPE}/libssl-3-x64.dll"
 #            "$<TARGET_FILE_DIR:IgniteNet>/libssl-3-x64.dll"
 #
 #            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#            "${GameNetworkingSocketsDir}/bin/Windows/${CMAKE_BUILD_TYPE}/libprotobuff.dll"
+#            "${GameNetworkingSocketsDir}/lib/Windows/${CMAKE_BUILD_TYPE}/libprotobuff.dll"
 #            "$<TARGET_FILE_DIR:IgniteNet>/libprotobuff.dll"
 #    )
 endif()

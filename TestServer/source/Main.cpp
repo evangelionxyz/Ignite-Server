@@ -1,4 +1,9 @@
 ﻿#include <iostream>
+#include <format>
+
 int main() {
-    std::cout << "Hello World!\n";
+
+    std::string msg = std::format("Hello {}", "Evangelion");
+
+    std::cout << msg;
 }
