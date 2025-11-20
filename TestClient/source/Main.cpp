@@ -186,15 +186,22 @@ void ProcessClientCommand(const std::string& message)
     }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
     scratchBuffer.Allocate(10 * 1024 * 1024);
     client.SetDataReceivedCallback(OnDataReceived);
     client.SetServerConnectedCallback(OnServerConnected);
     client.SetServerDisconnectedCallback(OnServerDisconnected);
 
-    std::cout << "Connecting to server at 127.0.0.1:8192..." << std::endl;
-    client.ConnectToServer("127.0.0.1:8192");
+    // Allow server address to be specified via command line
+    std::string serverAddress = "127.0.0.1:8192";
+    if (argc > 1)
+    {
+        serverAddress = argv[1];
+    }
+
+    std::cout << "Connecting to server at " << serverAddress << "..." << std::endl;
+    client.ConnectToServer(serverAddress);
 
     // Create Player data
     player.id = uint32_t(-1);
