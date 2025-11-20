@@ -1,0 +1,57 @@
+name: Ignite Net CI
+
+on:
+  push:
+    branches: [ "master", "dev" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository (with submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang ninja-build
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=clang++
+
+      - name: Build Ignite Net
+        run: cmake --build build --config Release --parallel
+
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -S . `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Ignite Net
+        run: cmake --build build --config Release --parallel

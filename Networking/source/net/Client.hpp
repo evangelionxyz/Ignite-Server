@@ -21,6 +21,7 @@ namespace ignite::net
         {
             Disconnected = 0, Connected, Connecting, FailedToConnect
         };
+        
         using DataReceivedCallback = std::function<void(const Buffer)>;
         using ServerConnectedCallback = std::function<void()>;
         using ServerDisconnectedCallback = std::function<void()>;

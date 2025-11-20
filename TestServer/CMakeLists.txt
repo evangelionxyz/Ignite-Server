@@ -33,4 +33,19 @@ add_custom_command(TARGET TestServer POST_BUILD
     "${GameNetworkingSocketsDir}/lib/Windows/$<CONFIG>/libprotobuf$<$<CONFIG:Debug>:d>.dll"
     "$<TARGET_FILE_DIR:TestServer>/libprotobuf$<$<CONFIG:Debug>:d>.dll"
 )
+elseif(UNIX AND NOT APPLE)
+target_link_libraries(TestServer PUBLIC
+    ${GameNetworkingSocketsDir}/lib/Linux/libGameNetworkingSockets.so
+    ${GameNetworkingSocketsDir}/lib/Linux/libprotobuf.so.23
+)
+
+add_custom_command(TARGET TestServer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${GameNetworkingSocketsDir}/lib/Linux/libGameNetworkingSockets.so"
+    "$<TARGET_FILE_DIR:TestServer>/libGameNetworkingSockets.so"
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${GameNetworkingSocketsDir}/lib/Linux/libprotobuf.so.23"
+    "$<TARGET_FILE_DIR:TestServer>/libprotobuf.so.23"
+)
 endif()

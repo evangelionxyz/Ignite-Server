@@ -19,4 +19,9 @@ if (WIN32)
         $<$<CONFIG:RelWithDebInfo>:${GameNetworkingSocketsDir}/lib/Windows/Release/GameNetworkingSockets.lib>
         $<$<CONFIG:MinSizeRel>:${GameNetworkingSocketsDir}/lib/Windows/Release/GameNetworkingSockets.lib>
     )
+elseif(UNIX AND NOT APPLE)
+    target_link_libraries(IgniteNet PUBLIC
+        ${GameNetworkingSocketsDir}/lib/Linux/libGameNetworkingSockets.so
+        ${GameNetworkingSocketsDir}/lib/Linux/libprotobuf.so.23
+    )
 endif()

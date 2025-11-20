@@ -3,8 +3,9 @@
 #include "Buffer.hpp"
 
 #include <string>
-#include <map>
 #include <unordered_map>
+#include <map>
+#include <vector>
 
 namespace ignite::net
 {
