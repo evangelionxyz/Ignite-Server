@@ -6,7 +6,8 @@
 #include <map>
 #include <unordered_map>
 
-namespace ignite {
+namespace ignite::net
+{
 
 class StreamWriter
 {
