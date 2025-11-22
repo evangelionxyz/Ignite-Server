@@ -108,6 +108,14 @@ namespace ignite::net
         // User has been kicked from server
         // 1. String reason, could be empty string
         ClientKick = 11,
+
+        // -- PlayerInput --
+        // [Client->Server] serialized player input for physics control
+        PlayerInput = 12,
+
+        // -- PhysicsState --
+        // [Server->Client] authoritative physics state for replicated entities
+        PhysicsState = 13,
     };
 
     static std::string_view PacketTypeToString(PacketType type)
@@ -126,6 +134,8 @@ namespace ignite::net
         case PacketType::MessageHistory:           return "PacketType::MessageHistory";
         case PacketType::ServerShutdown:           return "PacketType::ServerShutdown";
         case PacketType::ClientKick:               return "PacketType::ClientKick";
+        case PacketType::PlayerInput:              return "PacketType::PlayerInput";
+        case PacketType::PhysicsState:             return "PacketType::PhysicsState";
 
         default: return "PacketType::<Invalid>";
         }
