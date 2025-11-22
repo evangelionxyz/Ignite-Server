@@ -116,6 +116,10 @@ namespace ignite::net
         // -- PhysicsState --
         // [Server->Client] authoritative physics state for replicated entities
         PhysicsState = 13,
+
+        // -- EntitySpawn --
+        // [Server->Client] request to instantiate an entity from template with a specific UUID
+        EntitySpawn = 14,
     };
 
     static std::string_view PacketTypeToString(PacketType type)
@@ -136,6 +140,7 @@ namespace ignite::net
         case PacketType::ClientKick:               return "PacketType::ClientKick";
         case PacketType::PlayerInput:              return "PacketType::PlayerInput";
         case PacketType::PhysicsState:             return "PacketType::PhysicsState";
+        case PacketType::EntitySpawn:              return "PacketType::EntitySpawn";
 
         default: return "PacketType::<Invalid>";
         }
