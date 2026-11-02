@@ -81,6 +81,7 @@ namespace ignite::net
         void KickClient(ClientID client_id);
 
         bool IsRunning() const { return m_Running; }
+        bool GetClientRealTimeStatus(ClientID clientId, SteamNetConnectionRealTimeStatus_t *status) const;
 
         std::map<HSteamNetConnection, ClientInfo> GetConnectedClients() const
         {

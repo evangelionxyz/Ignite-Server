@@ -356,4 +356,20 @@ namespace ignite::net
         std::cout << message << std::endl;
         m_Running = false;
     }
+
+    bool Server::GetClientRealTimeStatus(ClientID clientId, SteamNetConnectionRealTimeStatus_t *status) const
+    {
+        if (!m_Interface || !status)
+            return false;
+
+        std::lock_guard<std::mutex> lock(m_ClientsMutex);
+        for (const auto &[conn, info] : m_ConnectedClients)
+        {
+            if (info.ID == clientId)
+            {
+                return m_Interface->GetConnectionRealTimeStatus(conn, status, 0, nullptr) == k_EResultOK;
+            }
+        }
+        return false;
+    }
 }

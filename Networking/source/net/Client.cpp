@@ -258,4 +258,13 @@ namespace ignite::net {
         std::cout << message << std::endl;
         m_Running = false;
     }
+
+    bool Client::GetRealTimeStatus(SteamNetConnectionRealTimeStatus_t *status) const
+    {
+        if (m_Interface && m_Connection != k_HSteamNetConnection_Invalid && status)
+        {
+            return m_Interface->GetConnectionRealTimeStatus(m_Connection, status, 0, nullptr) == k_EResultOK;
+        }
+        return false;
+    }
 }

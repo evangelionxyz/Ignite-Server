@@ -68,6 +68,8 @@ namespace ignite::net
 
         ConnectionStatus GetConnectionStatus() const { return m_ConnectionStatus; }
         const std::string &GetConnectionDebugMessage() const { return m_ConnectionDebugMessage; }
+        HSteamNetConnection GetConnectionHandle() const { return m_Connection; }
+        bool GetRealTimeStatus(SteamNetConnectionRealTimeStatus_t *status) const;
 
     private:
         void NetworkThreadFunc();
