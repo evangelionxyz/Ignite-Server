@@ -21,6 +21,9 @@ namespace ignite::net
 
         operator bool() const { return IsStreamGood(); }
 
+        // Upper bound for length-prefixed strings/buffers read from the stream (1 MiB).
+        static constexpr uint32_t MaxReadSize = 1u << 20;
+
         bool ReadBuffer(Buffer &buffer, uint32_t size = 0);
         bool ReadString(std::string &string);
 

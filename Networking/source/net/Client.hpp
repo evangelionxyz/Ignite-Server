@@ -11,6 +11,10 @@
 #include <string>
 #include <thread>
 #include <functional>
+#include <atomic>
+#include <mutex>
+#include <vector>
+#include <cstdint>
 
 namespace ignite::net
 {
@@ -22,6 +26,15 @@ namespace ignite::net
             Disconnected = 0, Connected, Connecting, FailedToConnect
         };
         
+        // Event produced on the network thread when the event queue is enabled.
+        struct NetEvent
+        {
+            enum class Type : uint8_t { Connected, Disconnected, DataReceived };
+
+            Type EventType = Type::DataReceived;
+            std::vector<uint8_t> Data;
+        };
+
         using DataReceivedCallback = std::function<void(const Buffer)>;
         using ServerConnectedCallback = std::function<void()>;
         using ServerDisconnectedCallback = std::function<void()>;
@@ -31,6 +44,12 @@ namespace ignite::net
 
         void ConnectToServer(const std::string &server_address);
         void Disconnect();
+
+        // When enabled, callbacks are not invoked on the network thread.
+        // Events are queued and dispatched on the caller thread by PumpEvents().
+        void EnableEventQueue(bool enable) { m_UseEventQueue = enable; }
+        // Dispatch queued events to the registered callbacks. Returns the number of events processed.
+        size_t PumpEvents();
 
         void SetDataReceivedCallback(const DataReceivedCallback &func);
         void SetServerConnectedCallback(const ServerConnectedCallback &func);
@@ -61,6 +80,7 @@ namespace ignite::net
         void PollConnectionStateChanges();
 
         void OnFatalError(const std::string &message);
+        void PushEvent(NetEvent &&event);
 
         std::thread m_NetworkThread;
 
@@ -68,11 +88,14 @@ namespace ignite::net
         ServerConnectedCallback m_ServerConnectedCallback;
         ServerDisconnectedCallback m_ServerDisconnectedCallback;
 
-        ConnectionStatus m_ConnectionStatus = ConnectionStatus::Disconnected;
+        std::atomic<ConnectionStatus> m_ConnectionStatus{ ConnectionStatus::Disconnected };
+        std::atomic<bool> m_UseEventQueue{ false };
+        std::mutex m_EventMutex;
+        std::vector<NetEvent> m_Events;
         std::string m_ConnectionDebugMessage;
 
         std::string m_ServerAddress;
-        bool m_Running = false;
+        std::atomic<bool> m_Running{ false };
 
         ISteamNetworkingSockets *m_Interface = nullptr;
         HSteamNetConnection m_Connection = 0;

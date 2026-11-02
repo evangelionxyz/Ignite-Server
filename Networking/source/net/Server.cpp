@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "GnsInit.hpp"
 
 #include <iostream>
 
@@ -13,6 +14,7 @@ namespace ignite::net
 
     Server::~Server()
     {
+        m_Running = false;
         if (m_NetworkThread.joinable())
             m_NetworkThread.join();
     }
@@ -22,12 +24,51 @@ namespace ignite::net
         if (m_Running)
             return;
 
+        if (m_NetworkThread.joinable())
+            m_NetworkThread.join();
+
+        m_Running = true;
         m_NetworkThread = std::thread([this]() { NetworkThreadFunc(); });
     }
 
     void Server::Stop()
     {
         m_Running = false;
+        if (m_NetworkThread.joinable() && m_NetworkThread.get_id() != std::this_thread::get_id())
+            m_NetworkThread.join();
+    }
+
+    void Server::PushEvent(NetEvent &&event)
+    {
+        std::lock_guard<std::mutex> lock(m_EventMutex);
+        m_Events.push_back(std::move(event));
+    }
+
+    size_t Server::PumpEvents()
+    {
+        std::vector<NetEvent> events;
+        {
+            std::lock_guard<std::mutex> lock(m_EventMutex);
+            events.swap(m_Events);
+        }
+
+        for (const NetEvent &event : events)
+        {
+            switch (event.EventType)
+            {
+            case NetEvent::Type::ClientConnected:
+                if (m_ClientConnectedCallback) m_ClientConnectedCallback(event.Client);
+                break;
+            case NetEvent::Type::ClientDisconnected:
+                if (m_ClientDisconnectedCallback) m_ClientDisconnectedCallback(event.Client);
+                break;
+            case NetEvent::Type::DataReceived:
+                if (m_DataReceivedCallback)
+                    m_DataReceivedCallback(event.Client, Buffer(event.Data.data(), event.Data.size()));
+                break;
+            }
+        }
+        return events.size();
     }
 
     void Server::SetDataReceivedCallback(const DataReceivedCallback &func)
@@ -47,6 +88,9 @@ namespace ignite::net
 
     void Server::SendBufferToClient(ClientID client_id, Buffer buffer, bool reliable /*= true*/)
     {
+        if (!m_Interface)
+            return;
+
         m_Interface->SendMessageToConnection((HSteamNetConnection)client_id, buffer.Data, (uint32_t)buffer.Size, 
             reliable ? k_nSteamNetworkingSend_Reliable : k_nSteamNetworkingSend_Unreliable, nullptr);
     }
@@ -63,6 +107,7 @@ namespace ignite::net
 
     void Server::SendBufferToAllClients(Buffer buffer, ClientID exclude_client_id /*= 0*/, bool reliable /*= true*/)
     {
+        std::lock_guard<std::mutex> lock(m_ClientsMutex);
         for (const auto &[client_id, client_info] : m_ConnectedClients)
         {
             if (client_id != exclude_client_id)
@@ -72,16 +117,42 @@ namespace ignite::net
 
     void Server::KickClient(ClientID client_id)
     {
-        m_Interface->CloseConnection(client_id, 0, "Kicked by host", false);
+        if (!m_Interface)
+            return;
+
+        // linger so that a queued reliable message (e.g. a reject reason) is flushed first
+        m_Interface->CloseConnection(client_id, 0, "Kicked by host", true);
+
+        // A locally closed connection does not raise a status-changed callback,
+        // so remove the client and notify here.
+        ClientInfo info{};
+        bool found = false;
+        {
+            std::lock_guard<std::mutex> lock(m_ClientsMutex);
+            auto it = m_ConnectedClients.find((HSteamNetConnection)client_id);
+            if (it != m_ConnectedClients.end())
+            {
+                info = it->second;
+                m_ConnectedClients.erase(it);
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            if (m_UseEventQueue)
+                PushEvent({ NetEvent::Type::ClientDisconnected, info, {} });
+            else if (m_ClientDisconnectedCallback)
+                m_ClientDisconnectedCallback(info);
+        }
     }
 
     void Server::NetworkThreadFunc()
     {
         s_Instance = this;
-        m_Running = true;
 
         SteamDatagramErrMsg error_message;
-        GameNetworkingSockets_Init(nullptr, error_message);
+        internal::InitGNS(error_message);
 
         m_Interface = SteamNetworkingSockets();
 
@@ -120,18 +191,22 @@ namespace ignite::net
         }
 
         // close all the connections
-        for (const auto &[client_id, client_info] : m_ConnectedClients)
         {
-            m_Interface->CloseConnection(client_id, 0, "Server shutdown", true);
-        }
+            std::lock_guard<std::mutex> lock(m_ClientsMutex);
+            for (const auto &[client_id, client_info] : m_ConnectedClients)
+            {
+                m_Interface->CloseConnection(client_id, 0, "Server shutdown", true);
+            }
 
-        m_ConnectedClients.clear();
+            m_ConnectedClients.clear();
+        }
 
         m_Interface->CloseListenSocket(m_ListenSocket);
         m_ListenSocket = k_HSteamListenSocket_Invalid;
 
         m_Interface->DestroyPollGroup(m_PollGroup);
         m_PollGroup = k_HSteamNetPollGroup_Invalid;
+        internal::KillGNS();
     }
 
     void Server::ConnectionStatusChangedCallback(SteamNetConnectionStatusChangedCallback_t *info)
@@ -149,10 +224,26 @@ namespace ignite::net
         case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
             if (status->m_eOldState == k_ESteamNetworkingConnectionState_Connected)
             {
-                auto it_client = m_ConnectedClients.find(status->m_hConn);
+                ClientInfo info{};
+                bool found = false;
+                {
+                    std::lock_guard<std::mutex> lock(m_ClientsMutex);
+                    auto it_client = m_ConnectedClients.find(status->m_hConn);
+                    if (it_client != m_ConnectedClients.end())
+                    {
+                        info = it_client->second;
+                        m_ConnectedClients.erase(it_client);
+                        found = true;
+                    }
+                }
 
-                m_ClientDisconnectedCallback(it_client->second);
-                m_ConnectedClients.erase(it_client);
+                if (found)
+                {
+                    if (m_UseEventQueue)
+                        PushEvent({ NetEvent::Type::ClientDisconnected, info, {} });
+                    else if (m_ClientDisconnectedCallback)
+                        m_ClientDisconnectedCallback(info);
+                }
             }
 
             m_Interface->CloseConnection(status->m_hConn, 0, nullptr, false);
@@ -179,11 +270,18 @@ namespace ignite::net
             m_Interface->GetConnectionInfo(status->m_hConn, &connection_info);
 
             // register connection client
-            auto &client = m_ConnectedClients[status->m_hConn];
+            ClientInfo client{};
             client.ID = (ClientID)status->m_hConn;
             client.ConnectionDesc = connection_info.m_szConnectionDescription;
+            {
+                std::lock_guard<std::mutex> lock(m_ClientsMutex);
+                m_ConnectedClients[status->m_hConn] = client;
+            }
 
-            m_ClientConnectedCallback(client);
+            if (m_UseEventQueue)
+                PushEvent({ NetEvent::Type::ClientConnected, client, {} });
+            else if (m_ClientConnectedCallback)
+                m_ClientConnectedCallback(client);
 
             break;
         }
@@ -217,16 +315,36 @@ namespace ignite::net
                 return;
             }
 
-            auto it_client = m_ConnectedClients.find(incoming_message->m_conn);
-            if (it_client == m_ConnectedClients.end())
+            ClientInfo info{};
+            bool found = false;
+            {
+                std::lock_guard<std::mutex> lock(m_ClientsMutex);
+                auto it_client = m_ConnectedClients.find(incoming_message->m_conn);
+                if (it_client != m_ConnectedClients.end())
+                {
+                    info = it_client->second;
+                    found = true;
+                }
+            }
+
+            if (!found)
             {
                 std::cout << "Error: Received data from unregistered client\n";
+                incoming_message->Release();
                 continue;
             }
 
             if (incoming_message->m_cbSize)
             {
-                m_DataReceivedCallback(it_client->second, Buffer(incoming_message->m_pData, incoming_message->m_cbSize));
+                if (m_UseEventQueue)
+                {
+                    const uint8_t *bytes = static_cast<const uint8_t *>(incoming_message->m_pData);
+                    PushEvent({ NetEvent::Type::DataReceived, info, std::vector<uint8_t>(bytes, bytes + incoming_message->m_cbSize) });
+                }
+                else if (m_DataReceivedCallback)
+                {
+                    m_DataReceivedCallback(info, Buffer(incoming_message->m_pData, incoming_message->m_cbSize));
+                }
             }
 
             incoming_message->Release();

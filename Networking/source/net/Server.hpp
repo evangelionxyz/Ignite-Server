@@ -12,6 +12,10 @@
 #include <map>
 #include <thread>
 #include <functional>
+#include <atomic>
+#include <mutex>
+#include <vector>
+#include <cstdint>
 
 namespace ignite::net
 {
@@ -21,6 +25,16 @@ namespace ignite::net
     {
         ClientID ID;
         std::string ConnectionDesc;
+    };
+
+    // Event produced on the network thread when the event queue is enabled.
+    struct NetEvent
+    {
+        enum class Type : uint8_t { ClientConnected, ClientDisconnected, DataReceived };
+
+        Type EventType = Type::DataReceived;
+        ClientInfo Client{};
+        std::vector<uint8_t> Data;
     };
 
     class Server
@@ -36,6 +50,12 @@ namespace ignite::net
 
         void Start();
         void Stop();
+
+        // When enabled, callbacks are not invoked on the network thread.
+        // Events are queued and dispatched on the caller thread by PumpEvents().
+        void EnableEventQueue(bool enable) { m_UseEventQueue = enable; }
+        // Dispatch queued events to the registered callbacks. Returns the number of events processed.
+        size_t PumpEvents();
 
         void SetDataReceivedCallback(const DataReceivedCallback &func);
         void SetClientConnectedCallback(const ClientConnectedCallback &func);
@@ -62,7 +82,11 @@ namespace ignite::net
 
         bool IsRunning() const { return m_Running; }
 
-        const std::map<HSteamNetConnection, ClientInfo> &GetConnectedClients() const { return m_ConnectedClients;  }
+        std::map<HSteamNetConnection, ClientInfo> GetConnectedClients() const
+        {
+            std::lock_guard<std::mutex> lock(m_ClientsMutex);
+            return m_ConnectedClients;
+        }
     private:
 
         // server thread
@@ -76,6 +100,7 @@ namespace ignite::net
         void PollConnectionStateChanges();
 
         void OnFatalError(const std::string &message);
+        void PushEvent(NetEvent &&event);
 
     private:
         std::thread m_NetworkThread;
@@ -84,8 +109,13 @@ namespace ignite::net
         ClientDisconnectedCallback m_ClientDisconnectedCallback;
 
         int m_Port = 0;
-        bool m_Running = false;
+        std::atomic<bool> m_Running{ false };
+        std::atomic<bool> m_UseEventQueue{ false };
+        mutable std::mutex m_ClientsMutex;
         std::map<HSteamNetConnection, ClientInfo> m_ConnectedClients;
+
+        std::mutex m_EventMutex;
+        std::vector<NetEvent> m_Events;
 
         ISteamNetworkingSockets *m_Interface = nullptr;
         HSteamListenSocket m_ListenSocket = 0u;
