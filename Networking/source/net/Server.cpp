@@ -195,7 +195,8 @@ namespace ignite::net
             std::lock_guard<std::mutex> lock(m_ClientsMutex);
             for (const auto &[client_id, client_info] : m_ConnectedClients)
             {
-                m_Interface->CloseConnection(client_id, 0, "Server shutdown", true);
+                m_Interface->SetConnectionPollGroup(client_id, k_HSteamNetPollGroup_Invalid);
+                m_Interface->CloseConnection(client_id, 0, "Server shutdown", false);
             }
 
             m_ConnectedClients.clear();
