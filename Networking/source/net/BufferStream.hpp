@@ -3,6 +3,7 @@
 #include "StreamWriter.hpp"
 #include "StreamReader.hpp"
 
+#include <cstdint>
 #include <filesystem>
 
 namespace ignite::net

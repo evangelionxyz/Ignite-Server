@@ -1,6 +1,8 @@
 #ifndef SERVER_PACKET_HPP
 #define SERVER_PACKET_HPP
 
+#include <cstdint>
+
 namespace ignite::net
 {
     enum class PacketType : uint16_t
